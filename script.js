@@ -1,6 +1,11 @@
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d');
 
+// Helpers functions
+const randomIntInRange = (min, max) => {
+  return Math.floor(Math.random() * (max - min) + min);
+};
+
 canvas.width = 600;
 canvas.height = 400;
 
@@ -67,12 +72,13 @@ class Player {
 }
 
 class Missil {
-  constructor(x, y, width, height, dy) {
+  constructor(x, y, width, height, dy, id) {
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
     this.dy = dy;
+    this.id = id;
   }
   draw() {
     ctx.fillRect(this.x, this.y, this.width, this.height);
@@ -84,11 +90,12 @@ class Missil {
 }
 
 class Ennemy {
-  constructor(x, y, width, height) {
+  constructor(x, y, width, height, health) {
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
+    this.health = health;
   }
 
   draw() {
@@ -96,19 +103,23 @@ class Ennemy {
   }
 
   update() {
-    this.draw();
+    if (this.health) {
+      this.draw();
+    }
   }
 }
 
 const playerMissils = [];
 
 const createPlayerMissil = () => {
+  const id = randomIntInRange(0, 999999);
   const newMissil = new Missil(
     canonPosition.x,
     canonPosition.y,
     6,
     6,
-    PLAYER_DX
+    PLAYER_DX,
+    id
   );
   playerMissils.push(newMissil);
 };
@@ -116,17 +127,7 @@ const createPlayerMissil = () => {
 let player;
 let ennemies = [];
 
-const init = () => {
-  // Create player instance
-  player = new Player(
-    (canvas.width - PLAYER_WIDTH) / 2, // X position (middle of the canvas)
-    canvas.height - PLAYER_HEIGHT - 20, // Y position (20px above bottom of canvas)
-    PLAYER_WIDTH,
-    PLAYER_HEIGHT,
-    PLAYER_DX // Player x velocity
-  );
-
-  // Create ennemy rows
+const createEnnemies = () => {
   let ennemyY = 20;
 
   for (let i = 0; i < ENNEMIES_ROWS; i++) {
@@ -143,10 +144,10 @@ const init = () => {
     for (let y = 0; y < ennemiesPerRow; y++) {
       const x = countX;
       if (i % 2 === 0 && y % 2 !== 0) {
-        const ennemy = new Ennemy(x, ennemyY, ENNEMY_WIDTH, ENNEMY_HEIGHT);
+        const ennemy = new Ennemy(x, ennemyY, ENNEMY_WIDTH, ENNEMY_HEIGHT, 3);
         row.push(ennemy);
       } else if (i % 2 !== 0 && y % 2 === 0) {
-        const ennemy = new Ennemy(x, ennemyY, ENNEMY_WIDTH, ENNEMY_HEIGHT);
+        const ennemy = new Ennemy(x, ennemyY, ENNEMY_WIDTH, ENNEMY_HEIGHT, 3);
         row.push(ennemy);
       }
       countX += ENNEMY_WIDTH;
@@ -155,7 +156,19 @@ const init = () => {
     ennemies.push(row);
     ennemyY += 20 + ENNEMY_HEIGHT;
   }
-  console.log('ennemies: ', ennemies);
+};
+
+const init = () => {
+  // Create player instance
+  player = new Player(
+    (canvas.width - PLAYER_WIDTH) / 2, // X position (middle of the canvas)
+    canvas.height - PLAYER_HEIGHT - 20, // Y position (20px above bottom of canvas)
+    PLAYER_WIDTH,
+    PLAYER_HEIGHT,
+    PLAYER_DX // Player x velocity
+  );
+
+  createEnnemies();
 };
 
 const loop = () => {
@@ -163,6 +176,7 @@ const loop = () => {
 
   // For each missil, loop through and display
   if (playerMissils && playerMissils.length) {
+    console.log('playerMissils: ', playerMissils);
     for (let i = 0; i < playerMissils.length; i++) {
       playerMissils[i].update();
     }
