@@ -10,23 +10,26 @@ canvas.width = 600;
 canvas.height = 400;
 
 // Game variables
-const FPS = 60;
+const FPS = 8;
 let keyDown = undefined; // Current key being pressed
 let fired = false; // Weither a shot has been fired
 let fire = false; // Weither trigger a shot or not
 
 // Player variables
 const PLAYER_WIDTH = 30;
-const PLAYER_HEIGHT = 15;
+const PLAYER_HEIGHT = 12;
 const PLAYER_DX = 1; // Player x velocity
+const PLAYER_COLOR = '#05dfd7';
 const canonPosition = {}; // Track the position of the canon (x & y) used to create missil
 // Player's missils variables
-const MISSIL_DY = 4; // Missil y velocity
+const MISSIL_DY = 3; // Missil y velocity
+const MISSIL_COLOR = '#fff591';
 
 // Ennemies variables
-const ENNEMY_WIDTH = PLAYER_WIDTH;
-const ENNEMY_HEIGHT = PLAYER_HEIGHT;
+const ENNEMY_WIDTH = 20;
+const ENNEMY_HEIGHT = 12;
 const ENNEMIES_ROWS = 3;
+const ENNEMY_HEALTH = 1;
 
 /* === CLASSES === */
 class Player {
@@ -40,7 +43,7 @@ class Player {
 
   draw() {
     // Draw the base of the ship
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = PLAYER_COLOR;
     ctx.fillRect(this.x, this.y, this.width, this.height);
     // Draw the canon of the ship
     const canonWidth = 6;
@@ -81,73 +84,83 @@ class Missil {
     this.id = id;
   }
   draw() {
+    ctx.fillStyle = MISSIL_COLOR;
     ctx.fillRect(this.x, this.y, this.width, this.height);
   }
   update() {
-    this.draw();
+    if (this.y <= -this.height) {
+      return (playerMissil = undefined);
+    }
     this.y -= this.dy;
+    this.draw();
   }
 }
 
 class Ennemy {
-  constructor(x, y, width, height, health) {
+  constructor(x, y, width, height, health, color) {
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
     this.health = health;
+    this.color = color;
   }
 
   draw() {
+    ctx.fillStyle = this.color || '#ffffff';
     ctx.fillRect(this.x, this.y, this.width, this.height);
   }
 
   update() {
-    if (this.health) {
+    if (this.health > 0) {
       this.draw();
+    }
+  }
+
+  decreaseHealth() {
+    if (this.health) {
+      this.health -= 1;
     }
   }
 }
 
-const playerMissils = [];
+let playerMissil;
 
 const createPlayerMissil = () => {
-  const id = randomIntInRange(0, 999999);
   const newMissil = new Missil(
-    canonPosition.x,
+    canonPosition.x + 1,
     canonPosition.y,
-    6,
-    6,
-    PLAYER_DX,
-    id
+    4,
+    4,
+    MISSIL_DY
   );
-  playerMissils.push(newMissil);
+  playerMissil = newMissil;
 };
 
 let player;
 let ennemies = [];
 
 const createEnnemies = () => {
-  let ennemyY = 20;
+  let ennemyY = 60;
+  const colors = ['#00FF41', '#05dfd7', '#fa26a0']; // green, blue, purple
+  const ennemiesPerRow = 11;
 
   for (let i = 0; i < ENNEMIES_ROWS; i++) {
-    let ennemiesPerRow;
     const row = [];
 
-    if (i % 2 === 0) {
-      ennemiesPerRow = canvas.width / ENNEMY_WIDTH - 1;
-    } else {
-      ennemiesPerRow = canvas.width / ENNEMY_WIDTH;
-    }
     let countX = ENNEMY_WIDTH / 2;
 
-    for (let y = 0; y < ennemiesPerRow; y++) {
+    for (let y = 0; y < ennemiesPerRow * 2; y++) {
       const x = countX;
-      if (i % 2 === 0 && y % 2 !== 0) {
-        const ennemy = new Ennemy(x, ennemyY, ENNEMY_WIDTH, ENNEMY_HEIGHT, 3);
-        row.push(ennemy);
-      } else if (i % 2 !== 0 && y % 2 === 0) {
-        const ennemy = new Ennemy(x, ennemyY, ENNEMY_WIDTH, ENNEMY_HEIGHT, 3);
+      if (y % 2 !== 0) {
+        const ennemy = new Ennemy(
+          x,
+          ennemyY,
+          ENNEMY_WIDTH,
+          ENNEMY_HEIGHT,
+          ENNEMY_HEALTH,
+          colors[i]
+        );
         row.push(ennemy);
       }
       countX += ENNEMY_WIDTH;
@@ -174,19 +187,27 @@ const init = () => {
 const loop = () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // For each missil, loop through and display
-  if (playerMissils && playerMissils.length) {
-    console.log('playerMissils: ', playerMissils);
-    for (let i = 0; i < playerMissils.length; i++) {
-      playerMissils[i].update();
-    }
+  // Update player missil position when created
+  if (playerMissil) {
+    playerMissil.update();
   }
 
   if (ennemies && ennemies.length) {
     for (let i = 0; i < ennemies.length; i++) {
       if (ennemies[i] && ennemies[i].length) {
         for (let y = 0; y < ennemies[i].length; y++) {
-          ennemies[i][y].update();
+          const currentEnnemy = ennemies[i][y];
+          if (
+            playerMissil &&
+            currentEnnemy.health &&
+            playerMissil.y <= currentEnnemy.y + currentEnnemy.height &&
+            playerMissil.x >= currentEnnemy.x &&
+            playerMissil.x <= currentEnnemy.x + currentEnnemy.width
+          ) {
+            currentEnnemy.decreaseHealth();
+            playerMissil = undefined;
+          }
+          currentEnnemy.update();
         }
       }
     }
@@ -202,7 +223,7 @@ const loop = () => {
   }
 
   if (!fired) {
-    if (fire) {
+    if (fire && !playerMissil) {
       fired = true;
       createPlayerMissil();
     }
